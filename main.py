@@ -12,7 +12,15 @@ def generate_data() -> List[int]:
     return np.random.randint(100, 10000, 1000).tolist()
 
 def process1(data: List[int]) -> List[int]:
-    """TODO: Document this function. What does it do? What are the inputs and outputs?"""
+    """TODO: Document this function. What does it do? What are the inputs and outputs?
+    
+    Takes in a list of integers and runs a function on the integers to find the next largest prime number and returns a list of these next largest prime numbers.
+    Args:
+        List[int]: list of integers that are being passed to this function
+    Returns:
+        List[int]: list of integers of the next largest primes
+    """
+
     def foo(x):
         """Find the next largest prime number."""
         while True:
@@ -22,7 +30,14 @@ def process1(data: List[int]) -> List[int]:
     return [foo(x) for x in data]
 
 def process2(data: List[int]) -> List[int]:
-    """TODO: Document this function. What does it do? What are the inputs and outputs?"""
+    """TODO: Document this function. What does it do? What are the inputs and outputs?
+
+    Takes in a list of integers and runs a function on the integers to find the next largest prime number and returns a list of these next largest prime numbers.
+    Args:
+        List[int]: list of integers that are being passed to this function
+    Returns:
+        List[int]: list of integers of the next largest primes
+    """
     def foo(x):
         """Find the next largest prime number."""
         while True:
@@ -32,10 +47,17 @@ def process2(data: List[int]) -> List[int]:
     return [foo(x) for x in data]
 
 def final_process(data1: List[int], data2: List[int]) -> List[int]:
-    """TODO: Document this function. What does it do? What are the inputs and outputs?"""
+    """TODO: Document this function. What does it do? What are the inputs and outputs?
+
+    Takes in two lists of integers which are then zipped and the difference is taken, the mean is calculated from the resulting differences.
+    Args:
+        List[int]: two of these are taken in
+    Returns:
+        List[int]: one list is returned from the two input lists
+    """
     return np.mean([x - y for x, y in zip(data1, data2)])
 
-offload_url = 'http://192.168.4.74:5000' # TODO: Change this to the IP address of your server
+offload_url = 'http://127.0.0.1:5000' # TODO: Change this to the IP address of your server
 
 def run(offload: Optional[str] = None) -> float:
     """Run the program, offloading the specified function(s) to the server.
@@ -55,6 +77,8 @@ def run(offload: Optional[str] = None) -> float:
         def offload_process1(data):
             nonlocal data1
             # TODO: Send a POST request to the server with the input data
+            p1=offload_url+'/process1'
+            response = requests.post(p1,json=data)
             data1 = response.json()
         thread = threading.Thread(target=offload_process1, args=(data,))
         thread.start()
@@ -67,9 +91,37 @@ def run(offload: Optional[str] = None) -> float:
         #   Make sure to cite any sources you use to answer this question.
     elif offload == 'process2':
         # TODO: Implement this case
+        data2 = None
+        def offload_process2(data):
+            nonlocal data2
+            # TODO: Send a POST request to the server with the input data
+            p2=offload_url+'/process2'
+            response = requests.post(p2,json=data)
+            data2 = response.json()
+        thread = threading.Thread(target=offload_process2, args=(data,))
+        thread.start()
+        data1 = process1(data)
+        thread.join()
         pass
     elif offload == 'both':
         # TODO: Implement this case
+        data1,data2 = None, None
+        def offload_process1(data):
+            nonlocal data1
+            b = offload_url+'/both'
+            response = requests.post(b,json=data)
+            data1 = response.json()
+        thread1 = threading.Thread(target=offload_process1, args=(data,))
+        thread1.start()
+
+        def offload_process2(data):
+            nonlocal data2
+            response = requests.post(offload_url,json=data)
+            data2 = response.json()
+        thread2 = threading.Thread(target=offload_process2, args=(data,))
+        thread2.start()
+        thread1.join()
+        thread2.join()
         pass
 
     ans = final_process(data1, data2)
@@ -79,12 +131,31 @@ def main():
     # TODO: Run the program 5 times for each offloading mode, and record the total execution time
     #   Compute the mean and standard deviation of the execution times
     #   Hint: store the results in a pandas DataFrame, use previous labs as a reference
+    offloading_modes=[None,'process1','process2','both']
+    num_runs = 5
+
+    results_df = pd.DataFrame(columns=['mode','time'])
+
+    for mode in offloading_modes:
+        total_time=0
+        for i in range(num_runs):
+            start_time = time.time()
+            run(mode)
+            end_time = time.time()
+            elapsedtime = end_time - start_time
+            total_time += elapsedtime
+        meantime = total_time/num_runs
+        std_time = pd.Series([time.time() - start_time for i in range(num_runs)]).std()
+        results_df = results_df._append({'mode':mode, 'time':meantime}, ignore_index=True)
 
 
     # TODO: Plot makespans (total execution time) as a bar chart with error bars
     # Make sure to include a title and x and y labels
-
-
+    plt.bar(x=results_df['mode'], height=results_df['time'], yerr=std_time)
+    plt.title('Execution time by offloading mode')
+    plt.xlabel('Offloading mode')
+    plt.ylabel('Total execution time')
+    plt.show()
     # TODO: save plot to "makespan.png"
 
 
